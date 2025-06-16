@@ -11,22 +11,25 @@ Welcome to our company! We are a team of dedicated professionals committed to de
 Welcome to our company! We are a team of dedicated professionals committed to delivering the best services and products to our clients. Our expertise spans various fields, ensuring that we can meet diverse needs with excellence and innovation.
 """
 st.write(content)
-st.header('Our Team')
+st.subheader('Our Team')
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
     for index, row in tm[:4].iterrows():
-        st.subheader(row['first name'] + ' ' + row['last name'])
+        st.subheader(row['first name'].capitalize() +
+                     ' ' + row['last name'].capitalize())
         st.write(row['role'])
         st.image('photo/' + row['image'])
 with col2:
     for index, row in tm[4:8].iterrows():
-        st.subheader(row['first name'] + ' ' + row['last name'])
+        st.subheader(row['first name'].capitalize() +
+                     ' ' + row['last name'].capitalize())
         st.write(row['role'])
         st.image('photo/' + row['image'])
 with col3:
     for index, row in tm[8:12].iterrows():
-        st.subheader(row['first name'] + ' ' + row['last name'])
+        st.subheader(row['first name'].capitalize() +
+                     ' ' + row['last name'].capitalize())
         st.write(row['role'])
         st.image('photo/' + row['image'])
