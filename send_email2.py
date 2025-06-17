@@ -1,6 +1,7 @@
 from email.message import EmailMessage
 import ssl
 import smtplib
+import os
 
 
 # def send_email(sender, password, receiver, subject, body):
@@ -8,7 +9,7 @@ def send_email(message, subject, user_email):
     host = "smtp.gmail.com"
     port = 465
     sender = "paolopci@gmail.com"
-    password = "xorgboyhigeyzvsi"
+    password = os.getenv("PASSWORD")  # Use environment variable for security
     receiver = user_email
 
     em = EmailMessage()

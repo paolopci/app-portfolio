@@ -13,4 +13,4 @@ with st.form(key='email_forms'):
         "Your message", height=200, placeholder="Enter your message here")
     submit_button = st.form_submit_button("Submit")
 if submit_button:
-    send_email(user_message, email_subject, user_email)
+    send_email(user_message, email_subject,  user_email)
