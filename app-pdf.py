@@ -1,7 +1,8 @@
 from fpdf import FPDF
 import pandas as pd
 
-# Questo è un semplice esempio di come creare un file PDF usando la libreria FPDF in Python.
+# Questo è un semplice esempio di come creare un file PDF usando la libreria FPDF
+#  in Python.
 df = pd.read_csv('topics.csv')
 
 pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -19,7 +20,8 @@ for index, row in df.iterrows():
         pdf.line(10, 20, 200, 20)
 
         # === RIGHE ORIZZONTALI OGNI 10mm ===
-        # Inizia da 30mm (dopo la linea sotto il titolo) fino a 260mm (prima del footer)
+        # Inizia da 30mm (dopo la linea sotto il titolo) fino a 260mm
+        # (prima del footer)
         for y in range(30, 270, 10):
             pdf.line(10, y, 200, y)
         # ===================================
