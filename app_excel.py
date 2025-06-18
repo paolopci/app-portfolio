@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 import os
 from fpdf import FPDF
+from pathlib import Path
 
 # Trova tutti i file .xlsx nella cartella invoices
 file_paths = glob.glob("invoices/*.xlsx")
@@ -21,9 +22,16 @@ for index, file in enumerate(file_paths, start=1):
 
     pdf = PDF(orientation="P", unit="mm", format="A4")
     pdf.add_page()
-    pdf.set_font("Arial", size=10)
+    # ho una stringa che rappresenta il nome del file. es ."100001-2023-2-18"
+    filename = Path(file).stem
+    invoice_nr, invoice_data = filename.split("-")
 
-    output_name = os.path.join("invoices", f"Sheet {index}.pdf")
+    pdf.set_font("Arial", size=10)
+    pdf.cell(w=100, h=8, txt=f"Invoice nr. {invoice_nr}", ln=1)
+    pdf.cell(w=100, h=8, txt=f"Invoice Date: {invoice_data}", ln=1)
+    pdf.ln(4)
+    # genero i pdf in una sottocartella pdf/
+    output_name = os.path.join("invoices/pdf/", f"{filename}.pdf")
 
     col_width = 190 / len(df.columns)
     row_height = 8
