@@ -4,8 +4,10 @@ from images import get_image
 
 
 st.set_page_config(layout="centered")
-st.title("Galaxy by the lake")
-
+# st.title("Galaxy by the lake")
+st.markdown("<h1 style='text-align: center;'>Galaxy by the lake</h1>",
+            unsafe_allow_html=True)
+st.text('')
 # get images from Nasa
 get_image()
 
