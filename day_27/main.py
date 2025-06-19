@@ -2,8 +2,8 @@
 from send_email2 import send_email
 import requests
 
-
-url = "https://newsapi.org/v2/everything?q=tesla&" \
+topic = "tesla"
+url = f"https://newsapi.org/v2/everything?q={topic}&" \
     "from=2025-05-19&" \
     "sortBy=publishedAt&" \
     "apiKey=2f4bc007f9094545b72fb6a4a37be75d&" \
