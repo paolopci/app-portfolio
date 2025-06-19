@@ -24,3 +24,6 @@ def send_email(message, subject, user_email):
         smtp.login(sender, password)
         smtp.sendmail(sender, receiver, em.as_string())
         print("Email sent successfully!")
+
+
+send_email('Ciao Paolo', 'Saluto', 'paolopci@libero.it')
