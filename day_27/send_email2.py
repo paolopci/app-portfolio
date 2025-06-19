@@ -26,4 +26,4 @@ def send_email(message, subject, user_email):
         print("Email sent successfully!")
 
 
-send_email('Ciao Paolo', 'Saluto', 'paolopci@libero.it')
+# send_email('Ciao Paolo', 'Saluto', 'paolopci@libero.it')
