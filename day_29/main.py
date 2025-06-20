@@ -8,7 +8,7 @@ def home():
     return render_template("home.html")
 
 
-@app.route("/about/api/<station>/<date>")  # è ka Home page
+@app.route("/about/api/v1/<station>/<date>")  # è ka Home page
 def about(station, date):
     return render_template("about.html")
 
