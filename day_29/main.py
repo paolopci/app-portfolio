@@ -3,11 +3,17 @@ import pandas as pd
 import os
 
 app = Flask(__name__)
+basedir = os.path.dirname(__file__)
+filename = os.path.join(basedir, "data_small",
+                        "stations.txt")
+stations = pd.read_csv(f"{filename}", skiprows=17)
+# tolgo gli spazi dalle intestazioni ma non modifico stations.txt
+stations.columns = stations.columns.str.strip()
 
 
 @app.route("/")  # è ka Home page
 def home():
-    return render_template("home.html")
+    return render_template("home.html", data=stations)
 
 
 @app.route("/api/v1/<station>/<date>")  # è la Home page
