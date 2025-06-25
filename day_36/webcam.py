@@ -1,6 +1,9 @@
 import cv2                # Importa la libreria OpenCV per la visione artificiale
 import time               # Importa la libreria time per gestire i tempi di attesa
 
+# devo fare il confronto tra il 1 frame e i successivi
+first_frame = None
+
 # puoi avere più webcam 0 indica la pricipale se non funziona prova 1 USB
 # Crea un oggetto VideoCapture per accedere alla webcam principale (indice 0)
 # CAP_DSHOW accelera l’apertura su Windows; ignorato altrove
@@ -23,9 +26,13 @@ while True:                   # Avvia un ciclo infinito per acquisire i frame da
     a tecniche come il background subtraction, in cui un’immagine più morbida riduce i falsi positivi.
     """
     gray_frame_gau = cv2.GaussianBlur(gray_frame, (21, 21), 0)
+    # salvo il primo frame
+    if first_frame is None:
+        first_frame = gray_frame_gau
 
-    # Mostra il frame acquisito in una finestra chiamata "My video"
-    cv2.imshow("My video", gray_frame_gau)
+    delta_frame = cv2.absdiff(first_frame, gray_frame_gau)
+
+    cv2.imshow("My video", delta_frame)
 
     # Attende 1 millisecondo la pressione di un tasto e restituisce il codice del tasto premuto
     key = cv2.waitKey(1)
