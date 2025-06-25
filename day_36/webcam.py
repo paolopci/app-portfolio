@@ -1,43 +1,44 @@
-import cv2                # Importa la libreria OpenCV per la visione artificiale
-import time               # Importa la libreria time per gestire i tempi di attesa
+"""Rilevamento movimento tramite webcam.
+Premi 'q' per uscire."""
 
-# devo fare il confronto tra il 1 frame e i successivi
-first_frame = None
+import cv2      # Libreria visione artificiale
+import time     # Funzioni di temporizzazione
 
-# puoi avere più webcam 0 indica la pricipale se non funziona prova 1 USB
-# Crea un oggetto VideoCapture per accedere alla webcam principale (indice 0)
-# CAP_DSHOW accelera l’apertura su Windows; ignorato altrove
+first_frame = None              # Fotogramma di riferimento
+
+# 0 = webcam predefinita; CAP_DSHOW velocizza l'apertura su Windows
 video = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-# Attende 1 secondo prima di iniziare a registrare
-time.sleep(1)
 
-while True:                   # Avvia un ciclo infinito per acquisire i frame dalla webcam
+time.sleep(1)                   # Stabilizzazione sensore
 
-    # Legge un frame dalla webcam; check è True se la lettura ha successo, frame contiene l'immagine
-    check, frame = video.read()
-    # converto il frame in una scala di grigi per avere calcoli + efficienti
-    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+while True:
+    ret, frame = video.read()   # Acquisizione frame
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)      # Scala di grigi
+    blur = cv2.GaussianBlur(gray, (21, 21), 0)          # Riduzione rumore
 
-    """
-    Applica un filtro gaussiano all’immagine gray_frame, producendo l’uscita gray_frame_gau.
-    Kernel (21, 21): finestra quadrata 21×21 pixel; dev’essere dispari per avere un centro definito.
-    • σ (sigma) 0: OpenCV calcola automaticamente la deviazione standard in base alla dimensione del kernel.
-    • Effetti principali: attenuazione del rumore ad alta frequenza, levigatura dei bordi e preparazione 
-    a tecniche come il background subtraction, in cui un’immagine più morbida riduce i falsi positivi.
-    """
-    gray_frame_gau = cv2.GaussianBlur(gray_frame, (21, 21), 0)
-    # salvo il primo frame
     if first_frame is None:
-        first_frame = gray_frame_gau
+        first_frame = blur
+        continue                # Salta il primo ciclo
 
-    delta_frame = cv2.absdiff(first_frame, gray_frame_gau)
+    # Differenza col background
+    delta = cv2.absdiff(first_frame, blur)
+    thresh = cv2.threshold(delta, 45, 255, cv2.THRESH_BINARY)[1]
+    thresh = cv2.dilate(thresh, None, iterations=2)     # Riempie i buchi
 
-    cv2.imshow("My video", delta_frame)
+    cv2.imshow("Movimento", thresh)
 
-    # Attende 1 millisecondo la pressione di un tasto e restituisce il codice del tasto premuto
-    key = cv2.waitKey(1)
+    contours, _ = cv2.findContours(
+        thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for c in contours:
+        if cv2.contourArea(c) < 5_000:                  # Rumore trascurabile
+            continue
+        x, y, w, h = cv2.boundingRect(c)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-    if key == ord("q"):              # Se viene premuto il tasto "q" (quit)
-        break                        # Esce dal ciclo
+    cv2.imshow("Video", frame)
 
-video.release()                      # Rilascia la
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+video.release()      # Rilascia la webcam
+cv2.destroyAllWindows()
