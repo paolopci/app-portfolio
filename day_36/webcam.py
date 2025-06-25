@@ -3,8 +3,10 @@ Premi 'q' per uscire."""
 
 import cv2      # Libreria visione artificiale
 import time     # Funzioni di temporizzazione
+from emailing import send_email
 
 first_frame = None              # Fotogramma di riferimento
+status_list = []
 
 # 0 = webcam predefinita; CAP_DSHOW velocizza l'apertura su Windows
 video = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -12,6 +14,7 @@ video = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 time.sleep(1)                   # Stabilizzazione sensore
 
 while True:
+    status = 0
     ret, frame = video.read()   # Acquisizione frame
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)      # Scala di grigi
     blur = cv2.GaussianBlur(gray, (21, 21), 0)          # Riduzione rumore
@@ -33,7 +36,17 @@ while True:
         if cv2.contourArea(c) < 5_000:                  # Rumore trascurabile
             continue
         x, y, w, h = cv2.boundingRect(c)
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        rectangle = cv2.rectangle(
+            frame, (x, y), (x + w, y + h), (0, 255, 0), 3)
+        if rectangle.any():
+            status = 1
+
+    status_list.append(status)
+    status_list = status_list[-2:]
+    if status_list[0] == 1 and status_list[1] == 0:
+        send_email()
+
+    print(status_list)
 
     cv2.imshow("Video", frame)
 
