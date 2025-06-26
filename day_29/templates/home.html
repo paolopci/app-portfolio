@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    table {
+        width: 60%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    th,
+    td {
+        border: 1px solid #444;
+        padding: 8px 12px;
+        text-align: left;
+    }
+
+    th {
+        background-color: #f0f0f0;
+        font-weight: bold;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+</style>
+
+<body>
+    <h1>Weather Data API</h1>
+    <p>URL format: http://127.0.0.1:5000/api/v1/station/date </p>
+    <p>For one station for one date: http://127.0.0.1:5000/api/v1/10/1988-10-25 </p>
+    <p>For one station for all dates: http://127.0.0.1:5000/api/v1/10 </p>
+    <p>For one station for one year: http://127.0.0.1:5000/api/v1/yearly/10/year </p>
+
+    <p>{{data}}</p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>STAID</th>
+                <th>STANAME</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data.itertuples() %}
+            <tr>
+                <td>{{ row.STAID }}</td>
+                <td>{{ row.STANAME }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>
