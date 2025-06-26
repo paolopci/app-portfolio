@@ -5,9 +5,9 @@ host = "smtp.gmail.com"
 port = 465
 
 username = "paolopci@gmail.com"
-password = "xorgboyhigeyzvsi"
+password = "vrdruiurqwcqbsiw"
 
-receiver = "paolopci@yahoo.it"
+receiver = "paolopci@libero.it"
 context = ssl.create_default_context()
 
 
