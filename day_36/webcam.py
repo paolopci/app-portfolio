@@ -4,9 +4,11 @@ Premi 'q' per uscire."""
 import cv2      # Libreria visione artificiale
 import time     # Funzioni di temporizzazione
 from emailing import send_email
-
+import glob
+pww = "vrdruiurqwcqbsiw"
 first_frame = None              # Fotogramma di riferimento
 status_list = []
+count = 1
 
 # 0 = webcam predefinita; CAP_DSHOW velocizza l'apertura su Windows
 video = cv2.VideoCapture(0, cv2.CAP_DSHOW)
@@ -16,6 +18,7 @@ time.sleep(1)                   # Stabilizzazione sensore
 while True:
     status = 0
     ret, frame = video.read()   # Acquisizione frame
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)      # Scala di grigi
     blur = cv2.GaussianBlur(gray, (21, 21), 0)          # Riduzione rumore
 
@@ -40,11 +43,17 @@ while True:
             frame, (x, y), (x + w, y + h), (0, 255, 0), 3)
         if rectangle.any():
             status = 1
+            cv2.imwrite(f"images/{count}.png", frame)
+            count = count+1
+            all_images = glob.glob("images/*.png")
+            # tra tutte le images che ho salvato prendo una in mezzo
+            index = int(len(all_images) / 2)
+            image_with_object = all_images[index]
 
     status_list.append(status)
     status_list = status_list[-2:]
     if status_list[0] == 1 and status_list[1] == 0:
-        send_email()
+        send_email(image_with_object)
 
     print(status_list)
 
