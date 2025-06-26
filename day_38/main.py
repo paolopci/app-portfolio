@@ -1,5 +1,4 @@
-# import requests
-# import selectorlib
+
 import service as sc
 import time
 
