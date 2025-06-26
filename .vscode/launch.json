@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    // {
+    //   "name": "Debug service.py (integrated)",
+    //   "type": "debugpy",
+    //   "request": "launch",
+    //   "program": "${workspaceFolder}/day_38/service.py",
+    //   "console": "integratedTerminal",
+    //   "cwd": "${workspaceFolder}/day_38",
+    //   "justMyCode": true
+    // }
+    {
+      "name": "Python: Current File",
+      "type": "debugpy",
+      "request": "launch",
+
+      // ► file aperto in primo piano
+      "program": "${file}",
+
+      // ► cartella che contiene il file aperto
+      "cwd": "${fileDirname}",
+
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}
