@@ -20,6 +20,8 @@ class AgeCalculator(QWidget):
         self.name_line_edit = QLineEdit()
 
         data_birth_label = QLabel("Data di nascita DD/MM/YYYY:")
+        # con self diventa una variabile di istanza
+        # quindi la posso usare anche  def calculate_age(self):
         self.data_birth_line_edit = QLineEdit()
         self.data_birth_line_edit.setPlaceholderText("DD/MM/YYYY")
 
@@ -34,7 +36,8 @@ class AgeCalculator(QWidget):
         grid.addWidget(self.name_line_edit, 0, 1)
         grid.addWidget(data_birth_label, 1, 0)
         grid.addWidget(self.data_birth_line_edit, 1, 1)
-        grid.addWidget(calculate_button, 2, 0, 1, 2)  # Span across 2 columns
+        # Span across 2 columns, Span across 2 columns, 1 su una riga 2 su due colonne
+        grid.addWidget(calculate_button, 2, 0, 1, 2)
         grid.addWidget(self.result_label, 3, 0, 1, 2)  # Span across 2 columns
 
         # Set the layout for the widget
