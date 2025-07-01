@@ -7,10 +7,21 @@ from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
 import sqlite3
 
+# Import della finestra modale
+from insert_student_dialog import InsertStudentDialog
+
 
 class StudentManagementForm(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Dati di esempio - ora come attributo della classe
+        self.sample_data = [
+            ['1', 'Mario Rossi', 'Computer Science', '333-1234567'],
+            ['2', 'Anna Bianchi', 'Mathematics', '333-2345678'],
+            ['3', 'Luca Verdi', 'Physics', '333-3456789'],
+            ['4', 'Sara Neri', 'Chemistry', '333-4567890'],
+            ['5', 'Marco Blu', 'Biology', '333-5678901']
+        ]
         self.initUI()
 
     def initUI(self):
@@ -77,7 +88,7 @@ class StudentManagementForm(QMainWindow):
                 background-color: #c0c0c0;
             }
             QToolBar {
-                background-color: #f0f0f0;
+                background-color: #f0f0f0;  
                 spacing: 5px;
                 border: none;
             }
@@ -158,22 +169,8 @@ class StudentManagementForm(QMainWindow):
 
         self.table.setColumnWidth(0, 80)
 
-        # Aggiunta di alcune righe di esempio
-        self.table.setRowCount(5)
-
-        # Esempio di dati
-        sample_data = [
-            ['1', 'Mario Rossi', 'Computer Science', '333-1234567'],
-            ['2', 'Anna Bianchi', 'Mathematics', '333-2345678'],
-            ['3', 'Luca Verdi', 'Physics', '333-3456789'],
-            ['4', 'Sara Neri', 'Chemistry', '333-4567890'],
-            ['5', 'Marco Blu', 'Biology', '333-5678901']
-        ]
-
-        for row, data in enumerate(sample_data):
-            for col, value in enumerate(data):
-                item = QTableWidgetItem(value)
-                self.table.setItem(row, col, item)
+        # Carica i dati nella tabella
+        self.load_table_data()
 
         # Impostazione altezza righe
         self.table.verticalHeader().setDefaultSectionSize(30)
@@ -182,6 +179,15 @@ class StudentManagementForm(QMainWindow):
         # Selezione intera riga
         self.table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows)
+
+    def load_table_data(self):
+        """Carica i dati da sample_data nella tabella"""
+        self.table.setRowCount(len(self.sample_data))
+
+        for row, data in enumerate(self.sample_data):
+            for col, value in enumerate(data):
+                item = QTableWidgetItem(str(value))
+                self.table.setItem(row, col, item)
 
     def load_data(self):
         try:
@@ -244,7 +250,9 @@ class StudentManagementForm(QMainWindow):
     # Metodi per le azioni dei pulsanti
 
     def new_record(self):
-        print("New Record clicked")
+        """Apre la finestra modale per aggiungere un nuovo studente"""
+        print("New Record clicked - Opening dialog")
+        self.open_add_student_dialog()
 
     def open_file(self):
         print("Open File clicked")
@@ -256,9 +264,38 @@ class StudentManagementForm(QMainWindow):
         print("About clicked")
 
     def add_record(self):
-        print("Add Record clicked")
-        row = self.table.rowCount()
-        self.table.insertRow(row)
+        """Apre la finestra modale per aggiungere un nuovo studente"""
+        print("Add Record clicked - Opening dialog")
+        self.open_add_student_dialog()
+
+    def open_add_student_dialog(self):
+        """Apre la finestra modale per l'inserimento di un nuovo studente"""
+        dialog = InsertStudentDialog(self, self.sample_data)
+
+        # Connette il segnale al metodo per aggiungere lo studente
+        dialog.student_added.connect(self.add_student_to_data)
+
+        # Mostra la finestra modale
+        dialog.exec()
+
+    def add_student_to_data(self, student_data):
+        """Aggiunge un nuovo studente ai dati e aggiorna la tabella"""
+        print(f"Adding new student: {student_data}")
+
+        # Aggiunge il nuovo studente ai sample_data
+        self.sample_data.append(student_data)
+
+        # Aggiunge una nuova riga alla tabella
+        row_position = self.table.rowCount()
+        self.table.insertRow(row_position)
+
+        # Riempie la nuova riga con i dati dello studente
+        for col, value in enumerate(student_data):
+            item = QTableWidgetItem(str(value))
+            self.table.setItem(row_position, col, item)
+
+        print(
+            f"Student added successfully. Total students: {len(self.sample_data)}")
 
     def search_records(self):
         print("Search Records clicked")
@@ -273,6 +310,11 @@ class StudentManagementForm(QMainWindow):
     def delete_record(self):
         current_row = self.table.currentRow()
         if current_row >= 0:
+            # Rimuove il record anche dai sample_data
+            if current_row < len(self.sample_data):
+                removed_student = self.sample_data.pop(current_row)
+                print(f"Removed student from data: {removed_student}")
+
             self.table.removeRow(current_row)
             print(f"Delete Record clicked - Row: {current_row} deleted")
         else:
