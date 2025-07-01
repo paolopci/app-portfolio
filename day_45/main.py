@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHeaderView, QFrame, QSpacerItem, QSizePolicy)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
+import sqlite3
 
 
 class StudentManagementForm(QMainWindow):
@@ -182,6 +183,40 @@ class StudentManagementForm(QMainWindow):
         self.table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows)
 
+    def load_data(self):
+        try:
+            # Connessione al database
+            connection = sqlite3.connect("database.db")
+            cursor = connection.cursor()
+
+            # Esecuzione della query
+            cursor.execute("SELECT * FROM Students")
+
+            # Recupero di tutti i records
+            records = cursor.fetchall()
+
+            # Stampa dei records a terminale
+            print("Records dal database:")
+            print("-" * 50)
+
+            if records:
+                for i, record in enumerate(records):
+                    print(f"Record {i+1}: {record}")
+            else:
+                print("Nessun record trovato nel database")
+
+            # Chiusura della connessione
+            connection.close()
+
+            return records
+
+        except sqlite3.Error as e:
+            print(f"Errore database: {e}")
+            return None
+        except Exception as e:
+            print(f"Errore generico: {e}")
+            return None
+
     def create_footer(self):
         self.footer_frame = QFrame()
         self.footer_frame.setFrameStyle(QFrame.Shape.Box)
@@ -252,6 +287,8 @@ def main():
 
     window = StudentManagementForm()
     window.show()
+    rr = window.load_data()
+    print(f"fffff: {rr}")
 
     sys.exit(app.exec())
 
