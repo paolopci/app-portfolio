@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
                              QLineEdit, QPushButton, QWidget, QSpacerItem,
-                             QSizePolicy)
+                             QSizePolicy, QComboBox)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
@@ -12,6 +12,8 @@ class InsertStudentDialog(QDialog):
     def __init__(self, parent=None, sample_data=None):
         super().__init__(parent)
         self.sample_data = sample_data or []
+        # Lista dei corsi disponibili
+        self.available_courses = ["Biology", "Math", "Astronomy", "Physics"]
         self.initUI()
 
     def initUI(self):
@@ -42,12 +44,15 @@ class InsertStudentDialog(QDialog):
         self.name_input.textChanged.connect(self.check_inputs)
         input_layout.addWidget(self.name_input)
 
-        # Campo Corso
-        self.course_input = QLineEdit()
-        self.course_input.setPlaceholderText("Course")
-        self.course_input.setFixedHeight(40)
-        self.course_input.textChanged.connect(self.check_inputs)
-        input_layout.addWidget(self.course_input)
+        # ComboBox Corso
+        self.course_combo = QComboBox()
+        self.course_combo.addItem("Select Course")  # Opzione placeholder
+        self.course_combo.addItems(self.available_courses)
+        self.course_combo.setFixedHeight(40)
+        self.course_combo.currentTextChanged.connect(self.check_inputs)
+        # Forza lo stile predefinito per evitare problemi con la freccia
+        self.course_combo.setStyleSheet("")
+        input_layout.addWidget(self.course_combo)
 
         # Campo Telefono
         self.phone_input = QLineEdit()
@@ -93,6 +98,40 @@ class InsertStudentDialog(QDialog):
             QLineEdit:focus {
                 border: 2px solid #0078d4;
             }
+            QComboBox {
+                border: 2px solid #333333;
+                padding: 8px 12px;
+                font-size: 12px;
+                background-color: white;
+                color: black;
+                border-radius: 0px;
+                margin: 0px;
+            }
+            QComboBox:focus {
+                border: 2px solid #0078d4;
+            }
+            QComboBox QAbstractItemView {
+                border: 2px solid #333333;
+                background-color: white;
+                color: black;
+                selection-background-color: #e0e0e0;
+                selection-color: black;
+                outline: none;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 8px 12px;
+                border: none;
+                background-color: white;
+                color: black;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #e0e0e0;
+                color: black;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #d0d0d0;
+                color: black;
+            }
             QPushButton {
                 background-color: #e0e0e0;
                 border: 2px solid #333333;
@@ -118,12 +157,13 @@ class InsertStudentDialog(QDialog):
     def check_inputs(self):
         """Controlla se tutti i campi sono valorizzati per abilitare il button Submit"""
         name_filled = bool(self.name_input.text().strip())
-        course_filled = bool(self.course_input.text().strip())
+        course_selected = (self.course_combo.currentText() != "Select Course" and
+                           self.course_combo.currentText() in self.available_courses)
         phone_filled = bool(self.phone_input.text().strip())
 
         # Abilita il button solo se tutti i campi sono riempiti
         self.submit_button.setEnabled(
-            name_filled and course_filled and phone_filled)
+            name_filled and course_selected and phone_filled)
 
     def get_next_id(self):
         """Trova l'ID più alto nei sample_data e restituisce il successivo"""
@@ -148,7 +188,7 @@ class InsertStudentDialog(QDialog):
         # Raccoglie i dati dai campi
         new_id = self.get_next_id()
         name = self.name_input.text().strip()
-        course = self.course_input.text().strip()
+        course = self.course_combo.currentText()
         phone = self.phone_input.text().strip()
 
         # Crea il nuovo record
@@ -169,6 +209,6 @@ class InsertStudentDialog(QDialog):
         return [
             new_id,
             self.name_input.text().strip(),
-            self.course_input.text().strip(),
+            self.course_combo.currentText(),
             self.phone_input.text().strip()
         ]
