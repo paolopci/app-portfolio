@@ -1,20 +1,36 @@
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout,
                              QLineEdit, QPushButton, QWidget, QSpacerItem,
-                             QSizePolicy, QComboBox)
+                             QSizePolicy, QComboBox, QMessageBox)
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from database_manager import db_manager
 
 
 class InsertStudentDialog(QDialog):
     # Segnale per comunicare i dati del nuovo studente
     student_added = pyqtSignal(list)
 
-    def __init__(self, parent=None, sample_data=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.sample_data = sample_data or []
-        # Lista dei corsi disponibili
-        self.available_courses = ["Biology", "Math", "Astronomy", "Physics"]
+        # Carica i corsi disponibili dal database MySQL
+        self.available_courses = self.load_courses_from_database()
         self.initUI()
+
+    def load_courses_from_database(self):
+        """Carica i corsi disponibili dal database MySQL"""
+        try:
+            courses = db_manager.get_all_courses()
+            if courses:
+                print(f"Corsi caricati dal database: {courses}")
+                return courses
+            else:
+                # Se non ci sono corsi nel database, restituisce una lista predefinita
+                print("Nessun corso trovato nel database, uso corsi predefiniti")
+                return ["Biology", "Math", "Astronomy", "Physics", "Computer Science", "Mathematics", "Chemistry"]
+        except Exception as e:
+            print(f"Errore durante il caricamento dei corsi: {e}")
+            # In caso di errore, restituisce una lista predefinita
+            return ["Biology", "Math", "Astronomy", "Physics", "Computer Science", "Mathematics", "Chemistry"]
 
     def initUI(self):
         # Impostazioni finestra
@@ -44,10 +60,17 @@ class InsertStudentDialog(QDialog):
         self.name_input.textChanged.connect(self.check_inputs)
         input_layout.addWidget(self.name_input)
 
-        # ComboBox Corso
+        # ComboBox Corso - popolata con dati dal database
         self.course_combo = QComboBox()
         self.course_combo.addItem("Select Course")  # Opzione placeholder
-        self.course_combo.addItems(self.available_courses)
+
+        # Popola la ComboBox con i corsi dal database
+        if self.available_courses:
+            self.course_combo.addItems(self.available_courses)
+        else:
+            # Se non ci sono corsi, mostra un messaggio
+            self.course_combo.addItem("No courses available")
+
         self.course_combo.setFixedHeight(40)
         self.course_combo.currentTextChanged.connect(self.check_inputs)
         # Forza lo stile predefinito per evitare problemi con la freccia
@@ -158,6 +181,7 @@ class InsertStudentDialog(QDialog):
         """Controlla se tutti i campi sono valorizzati per abilitare il button Submit"""
         name_filled = bool(self.name_input.text().strip())
         course_selected = (self.course_combo.currentText() != "Select Course" and
+                           self.course_combo.currentText() != "No courses available" and
                            self.course_combo.currentText() in self.available_courses)
         phone_filled = bool(self.phone_input.text().strip())
 
@@ -165,50 +189,84 @@ class InsertStudentDialog(QDialog):
         self.submit_button.setEnabled(
             name_filled and course_selected and phone_filled)
 
-    def get_next_id(self):
-        """Trova l'ID più alto nei sample_data e restituisce il successivo"""
-        if not self.sample_data:
-            return "1"
-
-        # Estrae tutti gli ID e trova il massimo
-        ids = []
-        for record in self.sample_data:
-            try:
-                ids.append(int(record[0]))
-            except (ValueError, IndexError):
-                continue
-
-        if ids:
-            return str(max(ids) + 1)
-        else:
+    def get_next_id_from_database(self):
+        """Ottiene il prossimo ID disponibile dal database MySQL"""
+        try:
+            next_id = db_manager.get_next_student_id()
+            return str(next_id)
+        except Exception as e:
+            print(f"Errore durante il recupero del prossimo ID: {e}")
             return "1"
 
     def submit_student(self):
         """Gestisce il submit del nuovo studente"""
-        # Raccoglie i dati dai campi
-        new_id = self.get_next_id()
-        name = self.name_input.text().strip()
-        course = self.course_combo.currentText()
-        phone = self.phone_input.text().strip()
+        try:
+            # Raccoglie i dati dai campi
+            next_id = self.get_next_id_from_database()
+            name = self.name_input.text().strip()
+            course = self.course_combo.currentText()
+            phone = self.phone_input.text().strip()
 
-        # Crea il nuovo record
-        new_student = [new_id, name, course, phone]
+            # Validazione aggiuntiva
+            if not name or not course or not phone or course == "Select Course":
+                QMessageBox.warning(self, "Dati Mancanti",
+                                    "Tutti i campi sono obbligatori!")
+                return
 
-        # Emette il segnale con i dati del nuovo studente
-        self.student_added.emit(new_student)
+            # Crea il nuovo record
+            new_student = [next_id, name, course, phone]
 
-        # Chiude la finestra
-        self.accept()
+            print(f"Preparazione invio dati: {new_student}")
+
+            # Emette il segnale con i dati del nuovo studente
+            self.student_added.emit(new_student)
+
+            # Chiude la finestra
+            self.accept()
+
+        except Exception as e:
+            error_msg = f"Errore durante la preparazione dei dati: {e}"
+            print(error_msg)
+            QMessageBox.critical(self, "Errore", error_msg)
 
     def get_student_data(self):
         """Restituisce i dati inseriti (per uso alternativo)"""
         if not self.submit_button.isEnabled():
             return None
 
-        new_id = self.get_next_id()
-        return [
-            new_id,
-            self.name_input.text().strip(),
-            self.course_combo.currentText(),
-            self.phone_input.text().strip()
-        ]
+        try:
+            next_id = self.get_next_id_from_database()
+            return [
+                next_id,
+                self.name_input.text().strip(),
+                self.course_combo.currentText(),
+                self.phone_input.text().strip()
+            ]
+        except Exception as e:
+            print(f"Errore durante il recupero dei dati: {e}")
+            return None
+
+    def refresh_courses(self):
+        """Aggiorna la lista dei corsi dal database (metodo utile per future estensioni)"""
+        try:
+            # Salva la selezione corrente
+            current_selection = self.course_combo.currentText()
+
+            # Carica i nuovi corsi
+            self.available_courses = self.load_courses_from_database()
+
+            # Pulisce e ripopola la ComboBox
+            self.course_combo.clear()
+            self.course_combo.addItem("Select Course")
+
+            if self.available_courses:
+                self.course_combo.addItems(self.available_courses)
+
+                # Ripristina la selezione se ancora valida
+                if current_selection in self.available_courses:
+                    self.course_combo.setCurrentText(current_selection)
+            else:
+                self.course_combo.addItem("No courses available")
+
+        except Exception as e:
+            print(f"Errore durante l'aggiornamento dei corsi: {e}")

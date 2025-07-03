@@ -2,32 +2,26 @@ import sys
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QTableWidget, QTableWidgetItem,
                              QPushButton, QMenuBar, QToolBar, QStatusBar,
-                             QHeaderView, QFrame, QSpacerItem, QSizePolicy)
+                             QHeaderView, QFrame, QSpacerItem, QSizePolicy,
+                             QMessageBox)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QAction, QIcon, QFont, QPalette, QColor
-import sqlite3
-import mysql.connector
 
-# Import della finestra modale
+# Import della finestra modale e del database manager
 from insert_student_dialog import InsertStudentDialog
+from database_manager import db_manager
 
 
 class StudentManagementForm(QMainWindow):
     def __init__(self):
         super().__init__()
-        # Dati di esempio - ora come attributo della classe
-        self.sample_data = [
-            ['1', 'Mario Rossi', 'Computer Science', '333-1234567'],
-            ['2', 'Anna Bianchi', 'Mathematics', '333-2345678'],
-            ['3', 'Luca Verdi', 'Physics', '333-3456789'],
-            ['4', 'Sara Neri', 'Chemistry', '333-4567890'],
-            ['5', 'Marco Blu', 'Biology', '333-5678901']
-        ]
+        self.students_data = []  # Dati degli studenti caricati dal database
         self.initUI()
+        self.load_students_from_database()
 
     def initUI(self):
         # Impostazioni finestra principale
-        self.setWindowTitle("Student Management System")
+        self.setWindowTitle("Student Management System - MySQL")
         self.setGeometry(100, 100, 800, 600)
 
         # Widget centrale
@@ -116,13 +110,15 @@ class StudentManagementForm(QMainWindow):
         new_action.triggered.connect(self.new_record)
         file_menu.addAction(new_action)
 
-        open_action = QAction('&Open', self)
-        open_action.triggered.connect(self.open_file)
-        file_menu.addAction(open_action)
+        refresh_action = QAction('&Refresh', self)
+        refresh_action.triggered.connect(self.refresh_data)
+        file_menu.addAction(refresh_action)
 
-        save_action = QAction('&Save', self)
-        save_action.triggered.connect(self.save_file)
-        file_menu.addAction(save_action)
+        file_menu.addSeparator()
+
+        init_data_action = QAction('&Initialize Sample Data', self)
+        init_data_action.triggered.connect(self.initialize_sample_data)
+        file_menu.addAction(init_data_action)
 
         file_menu.addSeparator()
 
@@ -149,6 +145,12 @@ class StudentManagementForm(QMainWindow):
         add_action.triggered.connect(self.add_record)
         toolbar.addAction(add_action)
 
+        # Pulsante Refresh
+        refresh_action = QAction('🔄', self)
+        refresh_action.setToolTip('Refresh Data')
+        refresh_action.triggered.connect(self.refresh_data)
+        toolbar.addAction(refresh_action)
+
         # Pulsante Cerca (lente di ingrandimento)
         search_action = QAction('🔍', self)
         search_action.setToolTip('Search Records')
@@ -170,9 +172,6 @@ class StudentManagementForm(QMainWindow):
 
         self.table.setColumnWidth(0, 80)
 
-        # Carica i dati nella tabella
-        self.load_table_data()
-
         # Impostazione altezza righe
         self.table.verticalHeader().setDefaultSectionSize(30)
         self.table.verticalHeader().hide()
@@ -181,48 +180,34 @@ class StudentManagementForm(QMainWindow):
         self.table.setSelectionBehavior(
             QTableWidget.SelectionBehavior.SelectRows)
 
-    def load_table_data(self):
-        """Carica i dati da sample_data nella tabella"""
-        self.table.setRowCount(len(self.sample_data))
+    def load_students_from_database(self):
+        """Carica gli studenti dal database MySQL"""
+        try:
+            # Carica i dati degli studenti dal database
+            self.students_data = db_manager.get_all_students()
 
-        for row, data in enumerate(self.sample_data):
+            if self.students_data:
+                self.populate_table()
+                print(
+                    f"Caricati {len(self.students_data)} studenti dal database")
+            else:
+                print("Nessun studente trovato nel database")
+                self.show_message(
+                    "Info", "Nessun studente trovato nel database.\nUsa 'File -> Initialize Sample Data' per aggiungere dati di esempio.")
+
+        except Exception as e:
+            error_msg = f"Errore durante il caricamento dei dati dal database: {e}"
+            print(error_msg)
+            self.show_error("Errore Database", error_msg)
+
+    def populate_table(self):
+        """Popola la tabella con i dati degli studenti"""
+        self.table.setRowCount(len(self.students_data))
+
+        for row, data in enumerate(self.students_data):
             for col, value in enumerate(data):
                 item = QTableWidgetItem(str(value))
                 self.table.setItem(row, col, item)
-
-    def load_data(self):
-        try:
-            # Connessione al database
-            connection = sqlite3.connect("database.db")
-            cursor = connection.cursor()
-
-            # Esecuzione della query
-            cursor.execute("SELECT * FROM Students")
-
-            # Recupero di tutti i records
-            records = cursor.fetchall()
-
-            # Stampa dei records a terminale
-            print("Records dal database:")
-            print("-" * 50)
-
-            if records:
-                for i, record in enumerate(records):
-                    print(f"Record {i+1}: {record}")
-            else:
-                print("Nessun record trovato nel database")
-
-            # Chiusura della connessione
-            connection.close()
-
-            return records
-
-        except sqlite3.Error as e:
-            print(f"Errore database: {e}")
-            return None
-        except Exception as e:
-            print(f"Errore generico: {e}")
-            return None
 
     def create_footer(self):
         self.footer_frame = QFrame()
@@ -255,14 +240,26 @@ class StudentManagementForm(QMainWindow):
         print("New Record clicked - Opening dialog")
         self.open_add_student_dialog()
 
-    def open_file(self):
-        print("Open File clicked")
+    def refresh_data(self):
+        """Ricarica i dati dal database"""
+        print("Refreshing data from database...")
+        self.load_students_from_database()
 
-    def save_file(self):
-        print("Save File clicked")
+    def initialize_sample_data(self):
+        """Inizializza il database con dati di esempio"""
+        try:
+            db_manager.initialize_sample_data()
+            self.refresh_data()
+            self.show_message(
+                "Successo", "Dati di esempio inizializzati con successo!")
+        except Exception as e:
+            error_msg = f"Errore durante l'inizializzazione dei dati: {e}"
+            print(error_msg)
+            self.show_error("Errore", error_msg)
 
     def show_about(self):
-        print("About clicked")
+        self.show_message(
+            "About", "Student Management System\nVersione MySQL 1.0\nConnesso al database SchoolDb")
 
     def add_record(self):
         """Apre la finestra modale per aggiungere un nuovo studente"""
@@ -271,32 +268,40 @@ class StudentManagementForm(QMainWindow):
 
     def open_add_student_dialog(self):
         """Apre la finestra modale per l'inserimento di un nuovo studente"""
-        dialog = InsertStudentDialog(self, self.sample_data)
+        dialog = InsertStudentDialog(self)
 
         # Connette il segnale al metodo per aggiungere lo studente
-        dialog.student_added.connect(self.add_student_to_data)
+        dialog.student_added.connect(self.add_student_to_database)
 
         # Mostra la finestra modale
         dialog.exec()
 
-    def add_student_to_data(self, student_data):
-        """Aggiunge un nuovo studente ai dati e aggiorna la tabella"""
-        print(f"Adding new student: {student_data}")
+    def add_student_to_database(self, student_data):
+        """Aggiunge un nuovo studente al database e aggiorna la tabella"""
+        try:
+            # student_data contiene [id, name, course, mobile] ma ignoriamo l'id
+            name = student_data[1]
+            course = student_data[2]
+            mobile = student_data[3]
 
-        # Aggiunge il nuovo studente ai sample_data
-        self.sample_data.append(student_data)
+            print(
+                f"Adding new student to database: {name}, {course}, {mobile}")
 
-        # Aggiunge una nuova riga alla tabella
-        row_position = self.table.rowCount()
-        self.table.insertRow(row_position)
+            # Inserisce lo studente nel database
+            if db_manager.insert_student(name, course, mobile):
+                print("Student added successfully to database")
+                # Ricarica i dati dal database per aggiornare la tabella
+                self.refresh_data()
+                self.show_message(
+                    "Successo", f"Studente '{name}' aggiunto con successo!")
+            else:
+                self.show_error(
+                    "Errore", "Errore durante l'inserimento dello studente nel database")
 
-        # Riempie la nuova riga con i dati dello studente
-        for col, value in enumerate(student_data):
-            item = QTableWidgetItem(str(value))
-            self.table.setItem(row_position, col, item)
-
-        print(
-            f"Student added successfully. Total students: {len(self.sample_data)}")
+        except Exception as e:
+            error_msg = f"Errore durante l'aggiunta dello studente: {e}"
+            print(error_msg)
+            self.show_error("Errore", error_msg)
 
     def search_records(self):
         print("Search Records clicked")
@@ -305,21 +310,60 @@ class StudentManagementForm(QMainWindow):
         current_row = self.table.currentRow()
         if current_row >= 0:
             print(f"Edit Record clicked - Row: {current_row}")
+            # TODO: Implementare la modifica dello studente
         else:
-            print("No record selected for editing")
+            self.show_message(
+                "Attenzione", "Seleziona un record da modificare")
 
     def delete_record(self):
         current_row = self.table.currentRow()
         if current_row >= 0:
-            # Rimuove il record anche dai sample_data
-            if current_row < len(self.sample_data):
-                removed_student = self.sample_data.pop(current_row)
-                print(f"Removed student from data: {removed_student}")
+            try:
+                # Ottiene l'ID dello studente dalla tabella
+                student_id = int(self.table.item(current_row, 0).text())
+                student_name = self.table.item(current_row, 1).text()
 
-            self.table.removeRow(current_row)
-            print(f"Delete Record clicked - Row: {current_row} deleted")
+                # Conferma dell'eliminazione
+                reply = QMessageBox.question(
+                    self,
+                    'Conferma Eliminazione',
+                    f"Sei sicuro di voler eliminare lo studente '{student_name}'?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+
+                if reply == QMessageBox.StandardButton.Yes:
+                    # Elimina dal database
+                    if db_manager.delete_student(student_id):
+                        print(
+                            f"Student deleted from database: ID {student_id}")
+                        # Ricarica i dati dal database
+                        self.refresh_data()
+                        self.show_message(
+                            "Successo", f"Studente '{student_name}' eliminato con successo!")
+                    else:
+                        self.show_error(
+                            "Errore", "Errore durante l'eliminazione dello studente dal database")
+
+            except Exception as e:
+                error_msg = f"Errore durante l'eliminazione dello studente: {e}"
+                print(error_msg)
+                self.show_error("Errore", error_msg)
         else:
-            print("No record selected for deletion")
+            self.show_message("Attenzione", "Seleziona un record da eliminare")
+
+    def show_message(self, title, message):
+        """Mostra un messaggio informativo"""
+        QMessageBox.information(self, title, message)
+
+    def show_error(self, title, message):
+        """Mostra un messaggio di errore"""
+        QMessageBox.critical(self, title, message)
+
+    def closeEvent(self, event):
+        """Gestisce la chiusura dell'applicazione"""
+        db_manager.disconnect()
+        event.accept()
 
 
 def main():
@@ -328,10 +372,16 @@ def main():
     # Impostazione del tema dell'applicazione
     app.setStyle('Fusion')
 
+    # Test della connessione al database
+    if not db_manager.test_connection():
+        QMessageBox.critical(None, "Errore Database",
+                             "Impossibile connettersi al database MySQL.\n"
+                             "Verifica che il container Docker sia in esecuzione\n"
+                             "e che i parametri di connessione siano corretti.")
+        sys.exit(1)
+
     window = StudentManagementForm()
     window.show()
-    rr = window.load_data()
-    print(f"fffff: {rr}")
 
     sys.exit(app.exec())
 
