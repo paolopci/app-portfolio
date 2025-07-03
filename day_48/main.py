@@ -1,4 +1,3 @@
-
 import sys
 from typing import List
 
@@ -29,6 +28,18 @@ import re
 import unicodedata
 
 
+def normalize(text: str) -> str:
+    """Converte in minuscolo "aggressivo", rimuove diacritici e spazi superflui."""
+    # ① Decompone i caratteri Unicode (NFKD) → 'ä' ⇒ 'a' + '¨'
+    nfkd = unicodedata.normalize("NFKD", text)
+    # ② Elimina i caratteri diacritici combinati
+    no_marks = "".join(c for c in nfkd if not unicodedata.combining(c))
+    # ③ Riduce sequenze di whitespace a un singolo spazio e trim
+    collapsed = re.sub(r"\s+", " ", no_marks).strip()
+    # ④ Case-fold (più completo di lower()) → insensibilità a maiuscole/minuscole
+    return collapsed.casefold()
+
+
 class StudentManagementForm(QMainWindow):
     """GUI principale per la gestione degli studenti (PyQt6 + MySQL)."""
 
@@ -38,6 +49,9 @@ class StudentManagementForm(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.students_data: List[List[str]] = []
+        self.filtered_data: List[List[str]] = []  # Dati filtrati
+        self.is_filtered: bool = False  # Stato del filtro
+        self.current_search_term: str = ""  # Termine di ricerca corrente
         self._init_ui()
         self._load_students_from_database()
 
@@ -122,7 +136,7 @@ class StudentManagementForm(QMainWindow):
                 self,
                 triggered=lambda: self._show_message(
                     "About",
-                    "Student Management System\\nVersione 1.0 – backend MySQL",
+                    "Student Management System\nVersione 1.0 – backend MySQL",
                 ),
             )
         )
@@ -139,7 +153,7 @@ class StudentManagementForm(QMainWindow):
         toolbar.addAction(
             QAction("🔄", self, toolTip="Refresh", triggered=self._refresh_data))
         toolbar.addAction(
-            QAction("🔍", self, toolTip="Search (TODO)", triggered=self._search_records))
+            QAction("🔍", self, toolTip="Search", triggered=self._search_records))
 
     # ------------------------------------------------------------------
     # Table -------------------------------------------------------------
@@ -173,6 +187,12 @@ class StudentManagementForm(QMainWindow):
         layout.addItem(QSpacerItem(
             40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
 
+        # Pulsante per rimuovere il filtro (inizialmente nascosto)
+        self.clear_filter_button = QPushButton("Clear Filter")
+        self.clear_filter_button.clicked.connect(self._clear_filter)
+        self.clear_filter_button.setVisible(False)
+        layout.addWidget(self.clear_filter_button)
+
         layout.addWidget(QPushButton("Edit Record", clicked=self._edit_record))
         layout.addWidget(QPushButton(
             "Delete Record", clicked=self._delete_record))
@@ -191,20 +211,64 @@ class StudentManagementForm(QMainWindow):
                 self.table.setRowCount(0)
                 self._show_message(
                     "Info",
-                    "Nessun studente trovato nel database.\\nUsa 'File → New' per crearne uno.",
+                    "Nessun studente trovato nel database.\nUsa 'File → New' per crearne uno.",
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self._show_error("Errore DB", str(exc))
 
     def _populate_table(self) -> None:
-        self.table.setRowCount(len(self.students_data))
-        for r, row in enumerate(self.students_data):
+        """Popola la tabella con i dati correnti (filtrati o completi)."""
+        data_to_show = self.filtered_data if self.is_filtered else self.students_data
+
+        self.table.setRowCount(len(data_to_show))
+        for r, row in enumerate(data_to_show):
             for c, value in enumerate(row):
                 self.table.setItem(r, c, QTableWidgetItem(str(value)))
 
+        # Aggiorna il titolo della finestra per mostrare lo stato del filtro
+        if self.is_filtered:
+            self.setWindowTitle(
+                f"Student Management System – MySQL (Filtro: '{self.current_search_term}' - {len(data_to_show)} risultati)")
+        else:
+            self.setWindowTitle("Student Management System – MySQL")
+
     def _refresh_data(self) -> None:
+        """Ricarica i dati dal database e mantiene il filtro se attivo."""
         print("Refresh data")
         self._load_students_from_database()
+
+        # Se c'è un filtro attivo, riapplicalo
+        if self.is_filtered and self.current_search_term:
+            self._apply_filter(self.current_search_term)
+
+    def _apply_filter(self, search_term: str) -> None:
+        """Applica il filtro ai dati basandosi sul termine di ricerca."""
+        pattern_norm = normalize(search_term)
+        self.filtered_data = []
+
+        for row in self.students_data:
+            # Cerca in tutte le colonne (Name, Course, Mobile)
+            name_norm = normalize(row[1])  # Nome
+            course_norm = normalize(row[2])  # Corso
+            mobile_norm = normalize(row[3])  # Telefono
+
+            if (pattern_norm in name_norm or
+                pattern_norm in course_norm or
+                    pattern_norm in mobile_norm):
+                self.filtered_data.append(row)
+
+        self.is_filtered = True
+        self.current_search_term = search_term
+        self.clear_filter_button.setVisible(True)
+        self._populate_table()
+
+    def _clear_filter(self) -> None:
+        """Rimuove il filtro e mostra tutti i dati."""
+        self.is_filtered = False
+        self.current_search_term = ""
+        self.filtered_data = []
+        self.clear_filter_button.setVisible(False)
+        self._populate_table()
 
     # ------------------------------------------------------------------
     # CRUD implementations ---------------------------------------------
@@ -239,8 +303,10 @@ class StudentManagementForm(QMainWindow):
             self._show_message(
                 "Attenzione", "Seleziona un record da eliminare")
             return
+
         student_id = int(self.table.item(row, 0).text())
         student_name = self.table.item(row, 1).text()
+
         reply = QMessageBox.question(
             self,
             "Conferma eliminazione",
@@ -248,6 +314,7 @@ class StudentManagementForm(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
+
         if reply == QMessageBox.StandardButton.Yes:
             if db_manager.delete_student(student_id):
                 self._refresh_data()
@@ -257,55 +324,33 @@ class StudentManagementForm(QMainWindow):
                 self._show_error(
                     "Errore", "Impossibile eliminare il record dal database")
 
-    def normalize(text: str) -> str:
-        """Converte in minuscolo “aggressivo”, rimuove diacritici e spazi superflui."""
-        # ① Decompone i caratteri Unicode (NFKD) → 'ä' ⇒ 'a' + '¨'
-        nfkd = unicodedata.normalize("NFKD", text)
-        # ② Elimina i caratteri diacritici combinati
-        no_marks = "".join(c for c in nfkd if not unicodedata.combining(c))
-        # ③ Riduce sequenze di whitespace a un singolo spazio e trim
-        collapsed = re.sub(r"\s+", " ", no_marks).strip()
-        # ④ Case-fold (più completo di lower()) → insensibilità a maiuscole/minuscole
-        return collapsed.casefold()
-
-#  ---------------------------------------------------------------
-
     def _search_records(self) -> None:
-        # --- apre la dialog ---
+        """Apre la dialog di ricerca e applica il filtro."""
         dialog = SearchStudentDialog(self)
-        if not dialog.exec():      # utente ha premuto "Cancel" o chiuso
-            return
 
-        raw_pattern = dialog.search_text()
-        if not raw_pattern:
-            return
+        if dialog.exec():  # Se l'utente clicca "Search"
+            search_term = dialog.search_text()
 
-        # --- normalizza il pattern ---
-        pattern_norm = normalize(raw_pattern)
+            if search_term:
+                self._apply_filter(search_term)
 
-        # Assicura che la tabella sia aggiornata
-        self._refresh_data()
-        self.table.clearSelection()
-
-        # --- ricerca & selezione righe ---
-        matches = []
-        for row in range(self.table.rowCount()):
-            cell_item = self.table.item(row, 1)          # colonna "Name"
-            if not cell_item:
-                continue
-            name_norm = normalize(cell_item.text())
-            if pattern_norm in name_norm:
-                matches.append(row)
-                self.table.selectRow(row)
-
-        # --- esiti ---
-        if matches:
-            self.table.scrollToItem(
-                self.table.item(matches[0], 1),
-                QTableWidget.ScrollHint.PositionAtCenter,
-            )
-        else:
-            self._show_message("Ricerca", "Nessun Studente Trovato!!")
+                # Mostra risultati
+                if self.filtered_data:
+                    self._show_message(
+                        "Ricerca",
+                        f"Trovati {len(self.filtered_data)} studenti che corrispondono a '{search_term}'"
+                    )
+                    # Seleziona la prima riga se ci sono risultati
+                    if self.table.rowCount() > 0:
+                        self.table.selectRow(0)
+                        self.table.scrollToItem(
+                            self.table.item(0, 1),
+                            QTableWidget.ScrollHint.PositionAtCenter
+                        )
+                else:
+                    self._show_message(
+                        "Ricerca", f"Nessun studente trovato per '{search_term}'")
+                    self._clear_filter()  # Rimuove il filtro se non ci sono risultati
 
     # ------------------------------------------------------------------
     # Utility dialogs ---------------------------------------------------
@@ -320,7 +365,7 @@ class StudentManagementForm(QMainWindow):
     # ------------------------------------------------------------------
     # Event override ----------------------------------------------------
     # ------------------------------------------------------------------
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         db_manager.disconnect()
         event.accept()
 
@@ -336,7 +381,7 @@ def main() -> None:
         QMessageBox.critical(
             None,
             "Errore Database",
-            "Impossibile connettersi al database MySQL.\\n"
+            "Impossibile connettersi al database MySQL.\n"
             "Verifica che il server sia in esecuzione e che i parametri di connessione siano corretti.",
         )
         sys.exit(1)

@@ -111,6 +111,14 @@ class DatabaseManager:
         rows = self.execute_query(query)
         return [[str(r[0]), r[1], r[2], r[3]] for r in rows]
 
+    def get_next_student_id(self) -> int:
+        """Restituisce il prossimo ID disponibile per un nuovo studente."""
+        query = "SELECT MAX(id) FROM students"
+        rows = self.execute_query(query)
+        if rows and rows[0][0] is not None:
+            return rows[0][0] + 1
+        return 1
+
     def insert_student(self, name: str, course: str, mobile: str) -> bool:
         query = "INSERT INTO students (name, course, mobile) VALUES (%s, %s, %s)"
         return self.execute_non_query(query, (name, course, mobile))
@@ -142,5 +150,4 @@ class DatabaseManager:
 
 
 # Singleton globale
-
 db_manager = DatabaseManager()
