@@ -24,6 +24,9 @@ from PyQt6.QtWidgets import (
 # Local modules
 from database_manager import db_manager
 from insert_student_dialog import InsertStudentDialog
+from search_student_dialog import SearchStudentDialog
+import re
+import unicodedata
 
 
 class StudentManagementForm(QMainWindow):
@@ -254,12 +257,60 @@ class StudentManagementForm(QMainWindow):
                 self._show_error(
                     "Errore", "Impossibile eliminare il record dal database")
 
+    def normalize(text: str) -> str:
+        """Converte in minuscolo “aggressivo”, rimuove diacritici e spazi superflui."""
+        # ① Decompone i caratteri Unicode (NFKD) → 'ä' ⇒ 'a' + '¨'
+        nfkd = unicodedata.normalize("NFKD", text)
+        # ② Elimina i caratteri diacritici combinati
+        no_marks = "".join(c for c in nfkd if not unicodedata.combining(c))
+        # ③ Riduce sequenze di whitespace a un singolo spazio e trim
+        collapsed = re.sub(r"\s+", " ", no_marks).strip()
+        # ④ Case-fold (più completo di lower()) → insensibilità a maiuscole/minuscole
+        return collapsed.casefold()
+
+#  ---------------------------------------------------------------
+
     def _search_records(self) -> None:
-        self._show_message("Info", "Funzionalità di ricerca da implementare")
+        # --- apre la dialog ---
+        dialog = SearchStudentDialog(self)
+        if not dialog.exec():      # utente ha premuto "Cancel" o chiuso
+            return
+
+        raw_pattern = dialog.search_text()
+        if not raw_pattern:
+            return
+
+        # --- normalizza il pattern ---
+        pattern_norm = normalize(raw_pattern)
+
+        # Assicura che la tabella sia aggiornata
+        self._refresh_data()
+        self.table.clearSelection()
+
+        # --- ricerca & selezione righe ---
+        matches = []
+        for row in range(self.table.rowCount()):
+            cell_item = self.table.item(row, 1)          # colonna "Name"
+            if not cell_item:
+                continue
+            name_norm = normalize(cell_item.text())
+            if pattern_norm in name_norm:
+                matches.append(row)
+                self.table.selectRow(row)
+
+        # --- esiti ---
+        if matches:
+            self.table.scrollToItem(
+                self.table.item(matches[0], 1),
+                QTableWidget.ScrollHint.PositionAtCenter,
+            )
+        else:
+            self._show_message("Ricerca", "Nessun Studente Trovato!!")
 
     # ------------------------------------------------------------------
     # Utility dialogs ---------------------------------------------------
     # ------------------------------------------------------------------
+
     def _show_message(self, title: str, message: str) -> None:
         QMessageBox.information(self, title, message)
 
